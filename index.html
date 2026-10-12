@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Odoo AI Dashboard</title>
+<style>
+:root{--bg:#0b0820;--panel:#150f33;--line:#2b2262;--tx:#eae6ff;--mut:#8f88c4;--pri:#714bdb;--pri2:#875aeb;--ok:#22a06b;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 700px at 55% 40%,#2a1670 0%,#0b0820 60%);background-color:var(--bg);color:var(--tx);font-family:Inter,Arial,sans-serif;min-height:100vh}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:200px;flex-shrink:0;background:#0d0a26;border-right:1px solid var(--line);padding:20px 12px;display:flex;flex-direction:column}
+.logo{font-size:34px;font-weight:700;letter-spacing:-1px;margin:0 8px 26px}
+.nav{padding:11px 12px;margin:4px 0;border-radius:9px;color:#c4bfe6;cursor:pointer;font-size:14px;user-select:none}
+.nav.active,.nav:hover{background:linear-gradient(90deg,#5a3bb8,#3b2a85);color:#fff}
+.side-foot{margin-top:auto;font-size:11px;color:var(--mut);padding:8px}
+.main{flex:1;min-width:0;padding:16px 20px}
+.top{display:flex;gap:16px;align-items:center;margin-bottom:18px}
+.search{flex:1;max-width:560px;background:#1b1443;border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--tx);font-size:13px;width:100%;outline:none}
+.status{margin-left:auto;font-size:13px;display:flex;align-items:center;gap:7px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}.dot.err{background:#d64545;box-shadow:0 0 8px #d64545}
+.user{background:#1b1443;border-radius:20px;padding:6px 12px;font-size:13px}
+.body{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:18px}
+.body.full{grid-template-columns:minmax(0,1fr)}.body.full #content{display:none}.body.full .chat{height:calc(100vh - 120px);max-width:820px;margin:0 auto;width:100%}
+.body.nochat{grid-template-columns:minmax(0,1fr)}.body.nochat .chat{display:none}
+h1{font-size:26px;margin:0}.sub{color:var(--mut);font-size:14px;margin:4px 0 16px}
+.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+.cards.c3{grid-template-columns:repeat(3,1fr)}
+.card,.panel{background:linear-gradient(160deg,rgba(40,28,100,.7),rgba(20,14,50,.85));border:1px solid var(--line);border-radius:14px;padding:14px;backdrop-filter:blur(6px)}
+.cl{font-size:13px;color:#d4cff5}.cv{font-size:26px;font-weight:700;margin:8px 0 4px}.up{color:#35d39a;font-size:12px}
+.mid{display:grid;grid-template-columns:330px minmax(0,1fr);gap:14px}
+.left{display:flex;flex-direction:column;gap:14px}
+h2{font-size:15px;margin:0 0 10px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px 6px;font-size:12px;border-bottom:1px solid #251d55;white-space:nowrap}th{color:var(--mut);font-weight:500}
+tbody tr:hover{background:rgba(113,75,219,.12)}
+.b{padding:3px 9px;border-radius:6px;font-size:11px}.Confirmed,.InStock{background:#14513d;color:#5eeab4}.Draft{background:#2a2556;color:#c4bfe6}.Done{background:#5a3bb8;color:#fff}.Low{background:#5a4a14;color:#ffd666}.Out,.Cancelled{background:#5a1f2a;color:#ff8a98}
+.scroll{overflow-x:auto}
+.stage{position:relative;min-height:600px}
+#globe{position:absolute;left:0;top:30px;width:62%;aspect-ratio:1;max-width:400px}
+.halo{position:absolute;left:0;top:30px;width:62%;max-width:400px;aspect-ratio:1;border-radius:50%;box-shadow:0 0 70px 10px rgba(135,90,235,.45),inset 0 0 50px rgba(135,90,235,.35);pointer-events:none}
+.ring{position:absolute;left:-4%;top:12%;width:70%;max-width:450px;aspect-ratio:2.1;border:1px solid rgba(160,120,255,.45);border-radius:50%;transform:rotate(-14deg);animation:spin 14s linear infinite;pointer-events:none}
+@keyframes spin{to{transform:rotate(346deg)}}
+.pad{position:absolute;left:3%;top:350px;width:56%;max-width:380px;height:40px;border-radius:50%;background:radial-gradient(#8a5bff,#3a1d8f 55%,transparent 70%);filter:blur(2px)}
+.pad2{position:absolute;right:-3%;top:520px;width:46%;max-width:250px;height:36px;border-radius:50%;background:radial-gradient(#8a5bff,#3a1d8f 55%,transparent 70%);filter:blur(2px)}
+.chip{position:absolute;background:rgba(26,18,70,.9);border:1px solid #5a3bb8;border-radius:10px;padding:7px 11px;font-size:12px;box-shadow:0 0 14px rgba(113,75,219,.5);animation:fl 5s ease-in-out infinite}
+.chip b{display:block;font-size:14px}
+@keyframes fl{50%{transform:translateY(-7px)}}
+
+/* ---------- Talking character (3rd figure) ---------- */
+#man{position:absolute;right:0;top:160px;width:38%;max-width:200px;height:auto;overflow:visible;cursor:pointer;outline:none}
+#man:focus-visible{filter:drop-shadow(0 0 6px #c7b3ff)}
+#man .bob{animation:bob 3.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-2.5px)}}
+#man .headg{transform-origin:110px 130px;animation:tilt 5s ease-in-out infinite}
+@keyframes tilt{0%,100%{transform:rotate(-1.5deg)}50%{transform:rotate(2deg)}}
+#man.talking .headg{animation:nod .55s ease-in-out infinite alternate}
+@keyframes nod{from{transform:rotate(-2deg) translateY(0)}to{transform:rotate(2deg) translateY(-1.5px)}}
+#man .eyes{transform-origin:110px 82px;animation:blink 4.2s infinite}
+@keyframes blink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.08)}}
+#pupils{transition:transform .15s ease-out}
+#mOpen{display:none}
+#man.talking #mClosed{display:none}
+#man.talking #mOpen{display:block;transform-origin:110px 105px;animation:talk .24s ease-in-out infinite alternate}
+@keyframes talk{from{transform:scaleY(.25)}to{transform:scaleY(1)}}
+#man .fore{transform-origin:46px 198px;transition:transform .6s cubic-bezier(.3,1.4,.5,1)}
+#man.wave .fore{transform:rotate(150deg)}
+#man .wig{transform-origin:46px 198px}
+#man.wave .wig{animation:wv .45s ease-in-out infinite alternate}
+@keyframes wv{from{transform:rotate(-16deg)}to{transform:rotate(16deg)}}
+@media(prefers-reduced-motion:reduce){#man .bob,#man .headg,#man .eyes,#man.wave .wig{animation:none!important}}
+
+.bubble{position:absolute;right:0;top:0;width:56%;min-height:96px;z-index:3;background:rgba(26,18,70,.94);border:1px solid #6b4bd0;border-radius:16px;padding:12px 14px;font-size:13px;line-height:1.5;box-shadow:0 0 22px rgba(113,75,219,.55)}
+.bubble::after{content:"";position:absolute;right:92px;bottom:-8px;width:14px;height:14px;background:rgba(26,18,70,.98);border-right:1px solid #6b4bd0;border-bottom:1px solid #6b4bd0;transform:rotate(45deg)}
+.bt{min-height:60px}
+.bbar{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:11px;color:var(--mut)}
+.mini{padding:4px 11px;font-size:11px;border-radius:14px;background:#3b2a85}
+.mini.on{background:linear-gradient(135deg,#8a5bff,#5a3bb8)}
+
+.lists{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px;position:relative}
+.row{display:flex;justify-content:space-between;font-size:12px;padding:7px 0;border-bottom:1px solid #251d55}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.pill{border:1px solid #4a3a9a;border-radius:18px;padding:6px 13px;font-size:12px;cursor:pointer;color:#d4cff5;background:none}.pill.on,.pill:hover{background:#3b2a85;color:#fff}
+.fld{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #251d55;font-size:13px;gap:12px}
+.fld input,.fld select{max-width:260px;background:#1b1443;border:1px solid var(--line);border-radius:10px;padding:9px;color:var(--tx);outline:none}
+.bar{height:6px;width:90px;background:#251d55;border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px}.bar i{display:block;height:100%;background:#8a5bff}
+.chat{display:flex;flex-direction:column;height:calc(100vh - 120px);min-height:520px;position:sticky;top:16px}
+.msgs{flex:1;overflow-y:auto}
+.msg{max-width:92%;padding:10px 12px;border-radius:10px;margin:8px 0;font-size:13px;line-height:1.45}
+.msg.user{margin-left:auto;background:var(--pri)}.msg.ai{background:#1f1750;border:1px solid var(--line)}
+.try{display:flex;flex-direction:column;gap:7px;align-items:flex-start;margin:8px 0}
+.try span{border:1px solid #4a3a9a;border-radius:18px;padding:7px 12px;font-size:12px;cursor:pointer;color:#d4cff5}.try span:hover{background:#2a1f6a}
+form{display:flex;gap:8px;margin-top:8px}
+input{flex:1;min-width:0;background:#1b1443;border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--tx);outline:none}input:focus{border-color:var(--pri2)}
+button{border:0;border-radius:9px;padding:10px 14px;background:linear-gradient(135deg,#8a5bff,#5a3bb8);color:#fff;font-weight:600;cursor:pointer}
+@media(max-width:1250px){.body{grid-template-columns:1fr}.chat{position:static;height:520px}}
+@media(max-width:980px){.cards,.cards.c3{grid-template-columns:repeat(2,1fr)}.mid{grid-template-columns:1fr}}
+@media(max-width:700px){.sidebar{display:none}.lists{grid-template-columns:1fr}.bubble{width:68%}}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+ <div class="logo">odoo</div>
+ <div class="nav active" data-v="dashboard">⌂ Dashboard</div><div class="nav" data-v="ai">✦ AI Assistant</div><div class="nav" data-v="sales">▥ Sales</div>
+ <div class="nav" data-v="customers">☺ Customers</div><div class="nav" data-v="products">▣ Products</div><div class="nav" data-v="inventory">▤ Inventory</div><div class="nav" data-v="settings">⚙ Settings</div>
+ <div class="side-foot">Better decisions.<br>Powered by Odoo AI.</div>
+</aside>
+<main class="main">
+ <div class="top">
+  <input class="search" id="gsearch" placeholder="🔍 Search this page..." autocomplete="off">
+  <div class="status" id="status"><span class="dot"></span>Checking Odoo...</div>
+  <div class="user">👤 <span id="uname">Kavan</span> ▾</div>
+ </div>
+ <div class="body" id="body">
+ <div id="content">
+
+ <!-- DASHBOARD VIEW -->
+ <div id="v-dashboard">
+  <h1 id="greet">Good Morning 👋</h1>
+  <div class="sub">Here's what's happening with your business today.</div>
+  <section class="cards">
+   <div class="card"><div class="cl">Total Customers</div><div class="cv" id="customers">—</div><div class="up">↑ 12% vs. last month</div></div>
+   <div class="card"><div class="cl">Sales Orders</div><div class="cv" id="orders">—</div><div class="up">↑ 8% vs. last month</div></div>
+   <div class="card"><div class="cl">Revenue</div><div class="cv" id="revenue">—</div><div class="up">↑ 15% vs. last month</div></div>
+   <div class="card"><div class="cl">Average Order</div><div class="cv" id="avg">—</div><div class="up">↑ 6% vs. last month</div></div>
+   <div class="card"><div class="cl">Products</div><div class="cv" id="products">542</div><div class="up">↑ 6% vs. last month</div></div>
+  </section>
+  <section class="mid">
+   <div class="left">
+    <div class="panel"><h2>Sales Revenue <span style="float:right;font-size:12px;color:var(--mut)">Last 7 days</span></h2>
+     <svg id="chart" viewBox="0 0 300 140" width="100%"></svg></div>
+    <div class="panel"><h2>Recent Sales Orders <button style="float:right;padding:3px 10px;font-size:11px" onclick="loadAll()">Refresh</button></h2>
+     <div class="scroll"><table><thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead><tbody id="ordersTable"></tbody></table></div></div>
+   </div>
+   <div>
+    <div class="stage">
+     <div class="ring"></div>
+     <canvas id="globe" width="800" height="800"></canvas><div class="halo"></div>
+     <div class="pad"></div><div class="pad2"></div>
+     <div class="chip" style="left:2%;top:0">Customers<b id="c1">248</b></div>
+     <div class="chip" style="left:24%;top:0;animation-delay:1s">Sales Orders<b id="c2">86</b></div>
+     <div class="chip" style="left:4%;top:375px;animation-delay:2s">Revenue<b id="c3">₹12.48L</b></div>
+     <div class="chip" style="left:30%;top:450px;animation-delay:3s">Products<b>542</b></div>
+
+     <!-- Speech bubble: Kavan's talking assistant -->
+     <div class="bubble" id="bubble">
+      <div class="bt" id="btxt">…</div>
+      <div class="bbar"><button type="button" class="mini" id="voiceBtn" aria-pressed="false">🔇 Voice off</button><span>Click me for the next update</span></div>
+     </div>
+
+     <!-- 3rd figure: animated, talking, waving, blinking, eyes follow the cursor -->
+     <svg id="man" viewBox="0 0 220 440" role="button" tabindex="0" aria-label="Odoo assistant. Press to hear the next update.">
+      <defs>
+       <linearGradient id="shirtG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9468e8"/><stop offset="1" stop-color="#5a3bb0"/></linearGradient>
+       <linearGradient id="jeanG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2b3b86"/><stop offset="1" stop-color="#18235a"/></linearGradient>
+       <linearGradient id="hairG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a2f5e"/><stop offset="1" stop-color="#150f2c"/></linearGradient>
+       <linearGradient id="faceG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6c19a"/><stop offset="1" stop-color="#e09a70"/></linearGradient>
+      </defs>
+      <ellipse cx="110" cy="418" rx="72" ry="9" fill="#000" opacity=".35"/>
+      <g class="bob">
+       <!-- legs -->
+       <path d="M72 246 L110 246 L107 388 L82 388 Z" fill="url(#jeanG)"/>
+       <path d="M110 246 L148 246 L139 388 L113 388 Z" fill="url(#jeanG)"/>
+       <path d="M110 252 L110 386" stroke="#0f1744" stroke-width="2" opacity=".6"/>
+       <rect x="72" y="244" width="76" height="9" rx="3" fill="#0f1744"/>
+       <!-- sneakers -->
+       <path d="M70 396 Q68 382 84 384 L108 388 Q108 402 116 410 L76 412 Q66 410 70 396 Z" fill="#f4f1ff"/>
+       <path d="M69 405 Q71 413 80 413 L116 413 L115 408 L71 407 Z" fill="#cfc6f0"/>
+       <path d="M80 392 L100 396 L98 404 L78 402 Z" fill="#6b5aa8"/>
+       <path d="M150 396 Q152 382 136 384 L112 388 Q112 402 104 410 L144 412 Q154 410 150 396 Z" fill="#f4f1ff"/>
+       <path d="M151 405 Q149 413 140 413 L104 413 L105 408 L149 407 Z" fill="#cfc6f0"/>
+       <path d="M140 392 L120 396 L122 404 L142 402 Z" fill="#6b5aa8"/>
+       <!-- torso -->
+       <path d="M72 150 Q72 136 92 134 L128 134 Q148 136 148 150 L152 252 Q110 264 68 252 Z" fill="url(#shirtG)"/>
+       <path d="M96 134 Q110 150 124 134" fill="none" stroke="#4a2d8f" stroke-width="3" stroke-linecap="round"/>
+       <text x="110" y="202" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="-1">odoo</text>
+       <!-- right arm (viewer's right): hand on hip -->
+       <path d="M150 152 L174 204 L152 246" fill="none" stroke="#eaa57c" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+       <path d="M148 150 L162 176" stroke="#7a52d0" stroke-width="24" stroke-linecap="round"/>
+       <circle cx="151" cy="247" r="8.5" fill="#eaa57c"/>
+       <!-- left arm (viewer's left): waves -->
+       <g class="armL">
+        <path d="M72 150 L46 198" stroke="#eaa57c" stroke-width="15" stroke-linecap="round"/>
+        <g class="fore"><g class="wig">
+         <path d="M46 198 L37 240" stroke="#eaa57c" stroke-width="13" stroke-linecap="round"/>
+         <circle cx="36" cy="247" r="9.5" fill="#eaa57c"/>
+         <ellipse cx="27" cy="241" rx="3.5" ry="6.5" fill="#eaa57c" transform="rotate(20 27 241)"/>
+        </g></g>
+        <path d="M74 148 L58 176" stroke="#7a52d0" stroke-width="24" stroke-linecap="round"/>
+       </g>
+       <!-- head -->
+       <g class="headg">
+        <rect x="99" y="116" width="22" height="24" rx="8" fill="#d98f66"/>
+        <circle cx="72" cy="86" r="8" fill="#eaa57c"/><circle cx="148" cy="86" r="8" fill="#eaa57c"/>
+        <ellipse cx="110" cy="82" rx="39" ry="43" fill="url(#faceG)"/>
+        <path d="M70 80 C62 40 88 22 116 26 C142 28 156 50 150 80 C146 62 136 54 122 52 C104 58 84 56 70 80 Z" fill="url(#hairG)"/>
+        <path d="M96 34 Q112 28 128 36" stroke="#8b7ad0" stroke-width="3" fill="none" opacity=".45" stroke-linecap="round"/>
+        <path d="M86 69 Q96 62 105 67" stroke="#1c1630" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M115 67 Q124 62 134 69" stroke="#1c1630" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <g class="eyes">
+         <ellipse cx="96" cy="82" rx="8.5" ry="10" fill="#fff"/><ellipse cx="124" cy="82" rx="8.5" ry="10" fill="#fff"/>
+         <g id="pupils">
+          <circle cx="97" cy="83" r="5.2" fill="#3b2418"/><circle cx="125" cy="83" r="5.2" fill="#3b2418"/>
+          <circle cx="99" cy="80.5" r="1.7" fill="#fff"/><circle cx="127" cy="80.5" r="1.7" fill="#fff"/>
+         </g>
+        </g>
+        <path d="M110 90 Q114 99 108 101" stroke="#c4795a" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <circle cx="88" cy="100" r="6" fill="#ff8a7a" opacity=".25"/><circle cx="132" cy="100" r="6" fill="#ff8a7a" opacity=".25"/>
+        <path id="mClosed" d="M97 106 Q110 118 123 106" stroke="#8a3b2c" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <g id="mOpen"><path d="M98 105 Q110 132 122 105 Q110 108 98 105 Z" fill="#5a1f26"/><path d="M104 119 Q110 125 116 119 Q110 114 104 119 Z" fill="#e0707a"/></g>
+       </g>
+      </g>
+     </svg>
+    </div>
+    <div class="lists">
+     <div class="panel"><h2>Top Customers</h2><div id="topC"></div></div>
+     <div class="panel"><h2>Top Products</h2><div id="topP"></div></div>
+    </div>
+   </div>
+  </section>
+ </div>
+
+ <!-- GENERIC PAGE VIEW (Sales / Customers / Products / Inventory / Settings) -->
+ <div id="v-page" style="display:none"></div>
+
+ </div>
+ <aside class="panel chat">
+  <h2>✦ AI Assistant</h2><div class="sub" style="margin:0 0 8px;font-size:12px">Ask me anything about your Odoo data</div>
+  <div class="msgs" id="chatMessages">
+   <div class="msg ai">Hello <span class="un">Kavan</span>. I can query your Odoo data.</div>
+   <div class="try" id="try"><span>How many customers do we have?</span><span>Show me my latest 10 sales orders</span><span>What are the top 5 products?</span><span>Total revenue this month</span></div>
+  </div>
+  <form onsubmit="sendChat(event)"><input id="chatInput" placeholder="Type your question..." autocomplete="off"><button>➤</button></form>
+ </aside>
+ </div>
+</main>
+</div>
+<script>
+const DEMO={revenue:1248320,orders:86,customers:248,avg:14515,
+recent:[["SO00086","ABC Traders",48500,"Confirmed"],["SO00085","Global Solutions",72300,"Confirmed"],["SO00084","Sunrise Pvt Ltd",36820,"Draft"],["SO00083","TechCorp",91200,"Confirmed"],["SO00082","Bright Future Ltd",64750,"Done"]],
+topC:[["ABC Traders",248000],["Global Solutions",192500],["Sunflower Retail",156800],["TechCorp",124600],["Bright Future Ltd",98400]],
+topP:[["Laptop Pro",324000],["Office Chair",248500],["Wireless Mouse",192300],["Monitor",176800],["Keyboard",124600]],
+trend:[52,48,60,70,68,85,100]};
+// Demo rows for pages. Optional backend: GET /api/sales, /api/customers, /api/products, /api/inventory returning arrays of arrays in the same shape.
+const PAGES_DEMO={
+ sales:[["SO00086","ABC Traders","2026-09-30",48500,"Confirmed"],["SO00085","Global Solutions","2026-09-30",72300,"Confirmed"],["SO00084","Sunrise Pvt Ltd","2026-09-29",36820,"Draft"],["SO00083","TechCorp","2026-09-28",91200,"Confirmed"],["SO00082","Bright Future Ltd","2026-09-27",64750,"Done"],["SO00081","Sunflower Retail","2026-09-26",28400,"Done"],["SO00080","Metro Supplies","2026-09-25",15900,"Cancelled"],["SO00079","ABC Traders","2026-09-24",52100,"Done"]],
+ customers:[["ABC Traders","accounts@abctraders.in","Ahmedabad",14,248000],["Global Solutions","hello@globalsol.com","Mumbai",11,192500],["Sunflower Retail","buy@sunflower.in","Surat",9,156800],["TechCorp","orders@techcorp.io","Bengaluru",8,124600],["Bright Future Ltd","info@brightfuture.in","Gandhinagar",6,98400],["Sunrise Pvt Ltd","sales@sunrise.co","Vadodara",4,61200],["Metro Supplies","care@metro.in","Rajkot",3,34500]],
+ products:[["Laptop Pro","LP-100","Electronics",64800,5],["Office Chair","OC-210","Furniture",8300,42],["Wireless Mouse","WM-330","Accessories",950,0],["Monitor 27\"","MN-270","Electronics",17600,18],["Keyboard","KB-410","Accessories",2100,64],["Standing Desk","SD-520","Furniture",21400,7],["USB-C Hub","UH-610","Accessories",1800,120]]};
+const CFG={
+ sales:{t:"Sales",s:"All sales orders",cols:["Order","Customer","Date","Amount","Status"],fmt:["","","","m","s"],filter:4,kpi:r=>[["Orders",r.length],["Revenue",money(r.filter(x=>x[4]!="Cancelled").reduce((a,x)=>a+x[3],0))],["Avg Order",money(r.reduce((a,x)=>a+x[3],0)/(r.length||1))]]},
+ customers:{t:"Customers",s:"Everyone you sell to",cols:["Customer","Email","City","Orders","Total Spent"],fmt:["","","","","m"],kpi:r=>[["Customers",r.length],["Total Orders",r.reduce((a,x)=>a+x[3],0)],["Lifetime Value",money(r.reduce((a,x)=>a+x[4],0))]]},
+ products:{t:"Products",s:"Your catalogue",cols:["Product","SKU","Category","Price","Stock"],fmt:["","","","m",""],filter:2,kpi:r=>[["Products",r.length],["Categories",new Set(r.map(x=>x[2])).size],["Avg Price",money(r.reduce((a,x)=>a+x[3],0)/(r.length||1))]]},
+ inventory:{t:"Inventory",s:"Stock levels",cols:["Product","SKU","On Hand","Level","Status"],fmt:["","","","bar","s"],filter:4,kpi:r=>[["Items",r.length],["Low Stock",r.filter(x=>x[4]=="Low").length],["Out of Stock",r.filter(x=>x[4]=="Out").length]]}
+};
+let D=DEMO,PD={...PAGES_DEMO},view="dashboard",q="",flt="All",messages=[];
+const money=v=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(Number(v||0));
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const $=id=>document.getElementById(id);
+const st=s=>s>=20?"InStock":s>0?"Low":"Out";
+function invRows(){return PD.inventory||PD.products.map(p=>[p[0],p[1],p[4],Math.min(100,p[4]),st(p[4])])}
+function getName(){try{return localStorage.getItem('odoo_user')||'Kavan'}catch(e){return 'Kavan'}}
+function setName(n){try{localStorage.setItem('odoo_user',n)}catch(e){}applyName()}
+function applyName(){const n=getName();$('uname').textContent=n;document.querySelectorAll('.un').forEach(e=>e.textContent=n);greet()}
+function greet(){const h=new Date().getHours();$('greet').textContent=(h<12?'Good Morning':h<17?'Good Afternoon':'Good Evening')+', '+getName()+' 👋'}
+
+async function checkHealth(){try{const d=await (await fetch('/api/health')).json();$('status').innerHTML=d.odoo_ok?'<span class="dot"></span>Odoo Connected':'<span class="dot err"></span>Odoo Error'}catch(e){$('status').innerHTML='<span class="dot err"></span>Demo data (backend offline)'}}
+async function loadAll(){
+ try{const d=await (await fetch('/api/kpis')).json();if(d.error)throw 0;
+  D={...DEMO,revenue:d.revenue,orders:d.orders,customers:d.customers,avg:d.avg,recent:(d.recent||[]).map(o=>[o.name,o.customer,o.amount,o.state||'Confirmed'])}}catch(e){D=DEMO}
+ for(const k of ['sales','customers','products','inventory']){try{const r=await (await fetch('/api/'+k)).json();if(Array.isArray(r)&&Array.isArray(r[0]))PD[k]=r;else if(k!='inventory')PD[k]=PAGES_DEMO[k]}catch(e){if(k!='inventory')PD[k]=PAGES_DEMO[k]}}
+ renderDash();if(view in CFG)renderPage();
+ if(!greeted){greeted=true;say(lines()[0])}   // first greeting once data is loaded
+}
+function renderDash(){
+ $('revenue').textContent=money(D.revenue);$('orders').textContent=Number(D.orders).toLocaleString('en-IN');
+ $('customers').textContent=Number(D.customers).toLocaleString('en-IN');$('avg').textContent=money(D.avg);
+ $('c1').textContent=D.customers;$('c2').textContent=D.orders;$('c3').textContent='₹'+(D.revenue/100000).toFixed(2)+'L';
+ $('products').textContent=PD.products.length>7?PD.products.length:542;
+ const rec=D.recent.filter(o=>!q||o.join(' ').toLowerCase().includes(q));
+ $('ordersTable').innerHTML=rec.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${money(r[2])}</td><td><span class="b ${esc(r[3])}">${esc(r[3])}</span></td></tr>`).join('')||'<tr><td colspan="4">No matches</td></tr>';
+ $('topC').innerHTML=DEMO.topC.map((r,i)=>`<div class="row"><span>${i+1}&nbsp; ${r[0]}</span><b>${money(r[1])}</b></div>`).join('');
+ $('topP').innerHTML=DEMO.topP.map((r,i)=>`<div class="row"><span>${i+1}&nbsp; ${r[0]}</span><b>${money(r[1])}</b></div>`).join('');
+ drawChart(DEMO.trend);
+}
+function drawChart(t){const w=300,h=140,p=18,mx=Math.max(...t);
+ const pts=t.map((v,i)=>[p+i*(w-2*p)/(t.length-1),h-p-(v/mx)*(h-2*p)]);
+ const line=pts.map(q=>q.join(',')).join(' ');
+ $('chart').innerHTML=`<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a5bff" stop-opacity=".6"/><stop offset="1" stop-color="#8a5bff" stop-opacity="0"/></linearGradient></defs>
+ <polygon points="${p},${h-p} ${line} ${w-p},${h-p}" fill="url(#g)"/><polyline points="${line}" fill="none" stroke="#a98bff" stroke-width="2"/>
+ ${pts.map(q=>`<circle cx="${q[0]}" cy="${q[1]}" r="3" fill="#c7b3ff"/>`).join('')}
+ ${['Sep 24','25','26','27','28','29','30'].map((l,i)=>`<text x="${pts[i][0]}" y="${h-3}" font-size="8" fill="#8f88c4" text-anchor="middle">${l}</text>`).join('')}`}
+
+// ---------- Pages ----------
+function cell(v,f){if(f=='m')return money(v);if(f=='s')return `<span class="b ${esc(v)}">${v=='InStock'?'In stock':esc(v)}</span>`;if(f=='bar')return `<span class="bar"><i style="width:${Math.min(100,v)}%"></i></span>${v}%`;return esc(v)}
+function renderPage(){
+ const c=CFG[view],all=view=='inventory'?invRows():PD[view];
+ const opts=c.filter!=null?['All',...new Set(all.map(r=>r[c.filter]))]:[];
+ if(!opts.includes(flt))flt='All';
+ const rows=all.filter(r=>(flt=='All'||r[c.filter]==flt)&&(!q||r.join(' ').toLowerCase().includes(q)));
+ $('v-page').innerHTML=`<h1>${c.t}</h1><div class="sub">${c.s}</div>
+ <section class="cards c3">${c.kpi(all).map(k=>`<div class="card"><div class="cl">${k[0]}</div><div class="cv">${k[1]}</div></div>`).join('')}</section>
+ <div class="panel"><div class="tools">${opts.map(o=>`<button class="pill ${o==flt?'on':''}" data-f="${esc(o)}">${o=='InStock'?'In stock':esc(o)}</button>`).join('')}<span style="margin-left:auto;font-size:12px;color:var(--mut)">${rows.length} of ${all.length} shown</span></div>
+ <div class="scroll"><table><thead><tr>${c.cols.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>'<tr>'+c.cols.map((_,i)=>`<td>${cell(r[i],c.fmt[i])}</td>`).join('')+'</tr>').join('')||`<tr><td colspan="${c.cols.length}">No results</td></tr>`}</tbody></table></div></div>`;
+}
+function renderSettings(){
+ $('v-page').innerHTML=`<h1>Settings</h1><div class="sub">Personalise your dashboard</div><div class="panel">
+ <div class="fld"><span>Display name</span><input id="sName" value="${esc(getName())}"></div>
+ <div class="fld"><span>Backend status</span><span id="sStat">${$('status').textContent}</span></div>
+ <div class="fld"><span>Health check interval</span><select id="sInt"><option value="10000">10 seconds</option><option value="30000" selected>30 seconds</option><option value="60000">60 seconds</option></select></div>
+ <div class="fld"><span>Data</span><button onclick="loadAll()">Reload from Odoo</button></div>
+ <div class="fld"><span>Clear chat history</span><button onclick="clearChat()">Clear</button></div></div>`;
+ $('sName').oninput=e=>setName(e.target.value.trim()||'Kavan');
+ $('sInt').onchange=e=>{clearInterval(hc);hc=setInterval(checkHealth,+e.target.value)};
+}
+function clearChat(){messages=[];const b=$('chatMessages');b.querySelectorAll('.msg:not(:first-child)').forEach(e=>e.remove())}
+function go(v){
+ view=v;q="";flt="All";$('gsearch').value="";
+ document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active',n.dataset.v==v));
+ const B=$('body');B.classList.toggle('full',v=='ai');B.classList.toggle('nochat',v=='settings');
+ $('v-dashboard').style.display=v=='dashboard'?'':'none';
+ $('v-page').style.display=(v in CFG||v=='settings')?'':'none';
+ if(v!='dashboard')cancelSpeech();
+ if(v=='dashboard')renderDash();else if(v in CFG)renderPage();else if(v=='settings')renderSettings();
+ if(v=='ai')$('chatInput').focus();
+}
+document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>go(n.dataset.v));
+$('v-page').onclick=e=>{if(e.target.dataset.f){flt=e.target.dataset.f;renderPage()}};
+$('gsearch').oninput=e=>{q=e.target.value.toLowerCase().trim();if(view=='dashboard')renderDash();else if(view in CFG)renderPage()};
+
+// ---------- Chat ----------
+function add(type,html){const b=$('chatMessages'),d=document.createElement('div');d.className='msg '+type;d.innerHTML=html;b.appendChild(d);b.scrollTop=b.scrollHeight;return d}
+function local(q){q=q.toLowerCase();
+ if(q.includes('customer'))return `You have <b>${D.customers}</b> customers.`;
+ if(q.includes('revenue'))return `Total revenue is <b>${money(D.revenue)}</b>.`;
+ if(q.includes('product'))return 'Top products:<br>'+DEMO.topP.map((r,i)=>`${i+1}. ${r[0]} - ${money(r[1])}`).join('<br>');
+ if(q.includes('order'))return 'Latest orders:<br>'+D.recent.map((o,i)=>`${i+1}. ${esc(o[0])} - ${esc(o[1])} - ${money(o[2])}`).join('<br>');
+ return 'Backend is offline, so I can only answer basic demo questions right now.'}
+async function ask(q){
+ add('user',esc(q));messages.push({role:'user',content:q});const l=add('ai','Thinking...');
+ let spoken='';
+ try{const d=await (await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages})})).json();
+  let h=esc(d.answer||'');spoken=d.answer||'';
+  if(d.table&&Array.isArray(d.table.columns)){h+='<br><br><div class="scroll"><table><thead><tr>'+d.table.columns.map(c=>`<th>${esc(c)}</th>`).join('')+'</tr></thead><tbody>'+(d.table.rows||[]).map(r=>'<tr>'+d.table.columns.map((_,i)=>`<td>${esc(r[i])}</td>`).join('')+'</tr>').join('')+'</tbody></table></div>'}
+  l.innerHTML=h;messages.push({role:'assistant',content:JSON.stringify(d)})}
+ catch(e){l.innerHTML=local(q);spoken=l.textContent}
+ if(view=='dashboard')react(spoken);   // the character answers out loud too
+ $('chatMessages').scrollTop=1e9}
+function sendChat(e){e.preventDefault();const i=$('chatInput'),q=i.value.trim();if(!q)return;i.value='';ask(q)}
+$('try').onclick=e=>{if(e.target.tagName==='SPAN')ask(e.target.textContent)};
+
+// ---------- Globe ----------
+const cv=$('globe'),cx=cv.getContext('2d'),N=2600,P=[];
+const land=(la,lo)=>Math.sin(lo*2+1)*Math.cos(la*3)+Math.sin(lo*3.7+la*2)*.6+Math.cos(lo*1.3-la*4)*.5>.35;
+for(let i=0;i<N;i++){const y=1-2*(i+.5)/N,la=Math.asin(y),lo=Math.PI*(1+Math.sqrt(5))*i;P.push([la,lo%(2*Math.PI)-Math.PI,land(la,lo%(2*Math.PI)-Math.PI)])}
+let rot=0;
+function frame(){if(view=='dashboard'){const S=800,R=370;cx.clearRect(0,0,S,S);
+ const g=cx.createRadialGradient(300,280,40,400,400,R);g.addColorStop(0,'#5a3bb8');g.addColorStop(.6,'#1d1250');g.addColorStop(1,'#0a0724');
+ cx.fillStyle=g;cx.beginPath();cx.arc(400,400,R,0,7);cx.fill();
+ for(const[la,lo,L]of P){const a=lo+rot,x=Math.cos(la)*Math.sin(a),y=Math.sin(la),z=Math.cos(la)*Math.cos(a);
+  if(z<0)continue;const px=400+x*R,py=400-y*R;
+  cx.fillStyle=L?`rgba(255,${190+z*50|0},120,${.35+z*.65})`:`rgba(170,140,255,${.08+z*.18})`;
+  cx.beginPath();cx.arc(px,py,L?3.2:1.8,0,7);cx.fill()}
+ rot+=.004}requestAnimationFrame(frame)}
+frame();
+
+// ---------- Talking character ----------
+const man=$('man'),btxt=$('btxt'),voiceBtn=$('voiceBtn');
+let greeted=false,voiceOn=false,tok=0,typeTimer=null,waveTimer=null,lineIdx=0;
+
+// What the character says. Edit these lines to change its personality.
+function lines(){
+ const n=getName(),h=new Date().getHours(),part=h<12?'morning':h<17?'afternoon':'evening';
+ const low=invRows().filter(r=>r[4]!='InStock').length;
+ return [
+  `Good ${part}, ${n}! How is your day going? Your company is doing great. You have ${D.orders} sales orders and ${money(D.revenue)} in revenue.`,
+  `Quick update: you now have ${D.customers} customers, and ${DEMO.topC[0][0]} is your best one right now.`,
+  `${DEMO.topP[0][0]} is leading your product sales. Nice work, ${n}!`,
+  low?`Heads up ${n}, ${low} product${low>1?'s are':' is'} low or out of stock. Worth a look.`:`Stock looks healthy across the board.`,
+  `Your average order value is ${money(D.avg)}. Keep it moving, ${n}!`
+ ];
+}
+function nextLine(){const L=lines();lineIdx=(lineIdx+1)%L.length;return L[lineIdx]}
+
+function wave(ms){man.classList.add('wave');clearTimeout(waveTimer);waveTimer=setTimeout(()=>man.classList.remove('wave'),ms)}
+function speechText(t){return t.replace(/₹\s?([\d,]+)/g,(m,x)=>x.replace(/,/g,'')+' rupees').replace(/[—–]/g,',')}
+function pickVoice(){const v=speechSynthesis.getVoices();return v.find(x=>/en-IN/i.test(x.lang))||v.find(x=>/^en/i.test(x.lang))||null}
+function cancelSpeech(){tok++;clearInterval(typeTimer);if('speechSynthesis' in window)speechSynthesis.cancel();man.classList.remove('talking','wave')}
+
+function say(text,opts={}){
+ cancelSpeech();
+ const my=tok;let pend=1,i=0;btxt.textContent='';
+ man.classList.add('talking');if(!opts.noWave)wave(2400);
+ const done=()=>{if(my!==tok)return;if(--pend<=0)man.classList.remove('talking')};
+ if(voiceOn&&'speechSynthesis' in window){
+  pend++;const u=new SpeechSynthesisUtterance(speechText(text));u.lang='en-IN';u.rate=1;u.pitch=1.05;
+  const v=pickVoice();if(v)u.voice=v;u.onend=u.onerror=done;speechSynthesis.speak(u)}
+ typeTimer=setInterval(()=>{btxt.textContent=text.slice(0,++i);if(i>=text.length){clearInterval(typeTimer);done()}},voiceOn?60:28);
+}
+function react(t){if(!t)return;t=t.replace(/\s+/g,' ').trim();say(t.length>170?t.slice(0,167)+'…':t,{noWave:true})}
+
+voiceBtn.onclick=e=>{e.stopPropagation();voiceOn=!voiceOn;voiceBtn.classList.toggle('on',voiceOn);voiceBtn.setAttribute('aria-pressed',voiceOn);
+ voiceBtn.textContent=voiceOn?'🔊 Voice on':'🔇 Voice off';
+ if(voiceOn)say(lines()[0]);else cancelSpeech()};   // click = user gesture, so browsers allow speech
+man.onclick=()=>say(nextLine());
+man.onkeydown=e=>{if(e.key=='Enter'||e.key==' '){e.preventDefault();say(nextLine())}};
+if('speechSynthesis' in window)speechSynthesis.getVoices();else voiceBtn.style.display='none';
+
+// Eyes follow the cursor
+document.addEventListener('mousemove',e=>{if(view!='dashboard')return;
+ const r=man.getBoundingClientRect(),dx=(e.clientX-(r.left+r.width/2))/innerWidth,dy=(e.clientY-(r.top+r.height*.2))/innerHeight;
+ const c=v=>Math.max(-1,Math.min(1,v));
+ $('pupils').style.transform=`translate(${c(dx*4)*3}px,${c(dy*4)*2.5}px)`});
+
+// Keeps talking every ~22s while you're on the dashboard
+setInterval(()=>{if(view=='dashboard'&&!document.hidden&&!man.classList.contains('talking'))say(nextLine())},22000);
+
+let hc=setInterval(checkHealth,30000);
+applyName();checkHealth();loadAll();
+</script>
+</body>
+</html>
